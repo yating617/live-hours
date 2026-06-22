@@ -57,26 +57,26 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>📊 直播時數達標追蹤 <span class="badge" id="src">範例資料</span></h1>
-  <div class="sub">目標 <b>45 小時 / 月</b>　·　資料來源：Google Sheet</div>
+  <h1>📊 直播時數達標追蹤<br><span style="font-size:14px;font-weight:600;color:var(--muted);">라이브 시간 목표 트래커</span></h1>
+  <div class="sub">目標 <b>45 小時 / 月</b>　|　목표 <b>45시간 / 월</b></div>
 
   <div class="row">
     <select id="month"></select>
   </div>
 
   <div class="card">
-    <div class="big">本月已播</div>
-    <div class="hours"><span id="hrs">0</span><small>小時</small></div>
+    <div class="big">本月已播 · 이번 달 라이브</div>
+    <div class="hours"><span id="hrs">0</span><small>小時 시간</small></div>
 
     <div class="goalline" id="goal"></div>
 
     <div class="bar" id="bar"><i id="fill"></i></div>
     <div class="pct" id="pct">0%</div>
-    <div class="meta"><span id="cntInfo"></span><span>目標 45 小時</span></div>
+    <div class="meta"><span id="cntInfo"></span><span>目標 45 小時 · 목표 45시간</span></div>
   </div>
 
   <div class="card">
-    <div class="big" style="margin-bottom:10px;">本月場次明細</div>
+    <div class="big" style="margin-bottom:10px;">本月場次明細 · 이번 달 라이브 내역</div>
     <div id="tableWrap"></div>
   </div>
 
@@ -129,24 +129,27 @@ function render(monthKey, rows){
 
   const remain = Math.round((GOAL_HOURS - hours)*10)/10;
   if(remain > 0){
-    $("goal").innerHTML = `離達標還差 <b class="remain">${remain}</b> 小時`;
+    $("goal").innerHTML = `離達標還差 <b class="remain">${remain}</b> 小時<br>`
+      + `<span style="font-size:13px;color:var(--muted);">목표까지 <b class="remain">${remain}</b>시간 남음</span>`;
   }else{
-    $("goal").innerHTML = `🎉 已達標！超出 <b class="done">${Math.abs(remain)}</b> 小時`;
+    $("goal").innerHTML = `🎉 已達標！超出 <b class="done">${Math.abs(remain)}</b> 小時<br>`
+      + `<span style="font-size:13px;color:var(--muted);">🎉 목표 달성! <b class="done">${Math.abs(remain)}</b>시간 초과</span>`;
   }
 
   const pct = Math.min(100, Math.round(hours/GOAL_HOURS*100));
   $("fill").style.width = pct + "%";
   $("pct").textContent = pct + "%";
   $("bar").classList.toggle("full", hours >= GOAL_HOURS);
-  $("cntInfo").textContent = `共 ${rows.length} 場`;
+  $("cntInfo").textContent = `共 ${rows.length} 場 · 총 ${rows.length}회`;
 
   // 明細表
-  let html = '<table><thead><tr><th>日期</th><th>開播</th><th>結束</th><th>分鐘</th></tr></thead><tbody>';
+  let html = '<table><thead><tr><th>日期<br>날짜</th><th>開播<br>시작</th><th>結束<br>종료</th><th>分鐘<br>분</th></tr></thead><tbody>';
   rows.forEach(r=>{
     html += `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td class="min">${r[3]}</td></tr>`;
   });
   html += '</tbody></table>';
-  $("tableWrap").innerHTML = rows.length ? html : '<div class="err">這個月還沒有資料</div>';
+  $("tableWrap").innerHTML = rows.length ? html
+    : '<div class="err">這個月還沒有資料<br>이번 달 데이터가 없습니다</div>';
 }
 
 // 從 Google Sheet 讀某個分頁（gviz，用分頁名稱）
@@ -174,7 +177,7 @@ async function loadMonth(monthKey){
       const rows = await fetchSheet(monthKey);
       render(monthKey, rows);
     }catch(e){
-      $("tableWrap").innerHTML = '<div class="err">讀取失敗，請確認分頁名稱與共用權限</div>';
+      $("tableWrap").innerHTML = '<div class="err">讀取失敗<br>불러오기 실패</div>';
     }
   }else{
     render(monthKey, DEMO[monthKey] || []);
@@ -184,10 +187,12 @@ async function loadMonth(monthKey){
 // 候選月份：從 2026.01 往後列到「今天的月份」，逐一試抓，有資料才放進下拉
 function candidateMonths(){
   const keys=[];
-  // 涵蓋 2025.01 ~ 2027.12，足夠用很久；實際有沒有資料由 fetch 決定
-  for(let y=2025;y<=2027;y++)
-    for(let m=1;m<=12;m++)
+  // 從 2026.05 起跑（最早的紀錄）到 2027.12；實際有沒有資料由 fetch 決定，沒資料不顯示
+  for(let y=2026;y<=2027;y++)
+    for(let m=1;m<=12;m++){
+      if(y===2026 && m<5) continue;   // 2026.05 之前沒紀錄，跳過
       keys.push(`${y}.${String(m).padStart(2,"0")}`);
+    }
   return keys;
 }
 
@@ -214,21 +219,21 @@ async function buildMonths(){
 function addOpt(sel,k){
   const o=document.createElement("option");
   o.value=k;
-  const [y,m]=k.split(".");
-  o.textContent=`${y}年${Number(m)}月`;
+  o.textContent=k;          // 直接顯示 2026.05 這種格式
   sel.appendChild(o);
 }
 
 (async function init(){
-  $("src").textContent = USE_SHEET ? "你的 Google Sheet" : "範例資料";
+  $("src").textContent = USE_SHEET ? "Google Sheet" : "範例資料";
   $("foot").innerHTML = USE_SHEET
-    ? "資料即時取自你的 Google Sheet · 表更新網頁就跟著更新"
+    ? "資料即時取自 Google Sheet，更新表格網頁就會跟著更新<br>"
+      + "데이터는 Google Sheet에서 실시간으로 가져옵니다"
     : "目前顯示的是範例資料";
-  $("tableWrap").innerHTML = '<div class="err" style="border-style:solid;">讀取中…</div>';
+  $("tableWrap").innerHTML = '<div class="err" style="border-style:solid;">讀取中… 불러오는 중…</div>';
   const first = await buildMonths();
   $("month").addEventListener("change", e=>loadMonth(e.target.value));
   if(first) loadMonth(first);
-  else $("tableWrap").innerHTML = '<div class="err">找不到月份分頁，請確認分頁名稱是 YYYY.MM 格式</div>';
+  else $("tableWrap").innerHTML = '<div class="err">找不到月份分頁<br>월 데이터를 찾을 수 없습니다</div>';
 })();
 </script>
 </body>
