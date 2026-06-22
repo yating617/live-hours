@@ -171,6 +171,18 @@ async function fetchSheet(sheetName){
     .filter(r=> r[0] && r[1] && !isNaN(r[3]) && r[3] > 0);
 }
 
+// 判斷某分頁是否「真的存在」。
+// gviz 對不存在的分頁不會報錯，而是 fallback 回第一個分頁的資料，
+// 所以這裡比對：回傳資料第一筆的「月份」是否等於我們要查的月份。
+// 例：查 2026.07 卻回 "5/1" 開頭 → 不是 7 月 → 判定該分頁不存在。
+function rowsMatchMonth(rows, monthKey){
+  if(!rows.length) return false;
+  const wantM = Number(monthKey.split(".")[1]);     // 2026.07 -> 7
+  const firstDate = String(rows[0][0]);             // "7/1" 或 "5/1"
+  const gotM = Number(firstDate.split("/")[0]);     // 取斜線前的月
+  return gotM === wantM;
+}
+
 async function loadMonth(monthKey){
   if(USE_SHEET){
     try{
@@ -184,15 +196,17 @@ async function loadMonth(monthKey){
   }
 }
 
-// 候選月份：從 2026.01 往後列到「今天的月份」，逐一試抓，有資料才放進下拉
+// 候選月份：從 2026.05（最早紀錄）到「今天的月份」，往後多看 1 個月以防跨月。
+// 用使用者裝置目前時間決定上限，不寫死，這樣到 7、8 月會自動延伸。
 function candidateMonths(){
+  const now = new Date();
+  const endY = now.getFullYear(), endM = now.getMonth()+1; // 1-based
   const keys=[];
-  // 從 2026.05 起跑（最早的紀錄）到 2027.12；實際有沒有資料由 fetch 決定，沒資料不顯示
-  for(let y=2026;y<=2027;y++)
-    for(let m=1;m<=12;m++){
-      if(y===2026 && m<5) continue;   // 2026.05 之前沒紀錄，跳過
-      keys.push(`${y}.${String(m).padStart(2,"0")}`);
-    }
+  let y=2026, m=5;                          // 從 2026.05 起跑
+  while(y < endY || (y===endY && m <= endM)){
+    keys.push(`${y}.${String(m).padStart(2,"0")}`);
+    m++; if(m>12){m=1;y++;}
+  }
   return keys;
 }
 
@@ -204,13 +218,15 @@ async function buildMonths(){
     sel.value = keys[keys.length-1];
     return sel.value;
   }
-  // SHEET 模式：平行試抓所有候選月，留下有資料的
+  // SHEET 模式：序列化逐月試抓（避免並發限流），用 fallback 偵測判斷分頁是否真的存在
   const cands = candidateMonths();
-  const results = await Promise.all(cands.map(async k=>{
-    try{ const rows = await fetchSheet(k); return rows.length ? k : null; }
-    catch(e){ return null; }
-  }));
-  const have = results.filter(Boolean);
+  const have = [];
+  for(const k of cands){
+    try{
+      const rows = await fetchSheet(k);
+      if(rowsMatchMonth(rows, k)) have.push(k);   // 月份對得上才算真的有這個分頁
+    }catch(e){ /* 略過這個月 */ }
+  }
   have.forEach(k=>addOpt(sel,k));
   sel.value = have.length ? have[have.length-1] : "";
   return sel.value;
