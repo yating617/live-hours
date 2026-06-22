@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>直播時數達標追蹤</title>
+<style>
+  :root{
+    --bg:#fff5f6; --card:#ffffff; --pink:#ff2e4d; --pink-soft:#ffd9df;
+    --ink:#2b2b2b; --muted:#8a8a8a; --good:#1db954;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{
+    margin:0;font-family:-apple-system,"PingFang TC","Microsoft JhengHei",
+    "Noto Sans TC",sans-serif;background:var(--bg);color:var(--ink);
+    min-height:100vh;display:flex;flex-direction:column;align-items:center;
+    padding:24px 16px 60px;
+  }
+  .wrap{width:100%;max-width:480px;}
+  h1{font-size:20px;margin:4px 0 2px;display:flex;align-items:center;gap:8px;}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:18px;}
+  .row{display:flex;align-items:center;gap:10px;margin-bottom:18px;}
+  select{
+    flex:1;padding:11px 12px;border:1px solid var(--pink-soft);border-radius:12px;
+    font-size:16px;background:#fff;color:var(--ink);appearance:none;
+  }
+  .card{
+    background:var(--card);border-radius:20px;padding:24px 22px;
+    box-shadow:0 6px 24px rgba(255,46,77,.10);margin-bottom:16px;
+  }
+  .big{font-size:15px;color:var(--muted);margin-bottom:6px;}
+  .hours{font-size:46px;font-weight:800;line-height:1;color:var(--pink);}
+  .hours small{font-size:18px;font-weight:600;color:var(--muted);margin-left:4px;}
+  .goalline{margin-top:14px;font-size:15px;}
+  .goalline b{font-size:18px;}
+  .remain{color:var(--pink);}
+  .done{color:var(--good);}
+  .bar{height:16px;background:var(--pink-soft);border-radius:99px;overflow:hidden;margin-top:16px;}
+  .bar > i{
+    display:block;height:100%;border-radius:99px;
+    background:linear-gradient(90deg,#ff6a82,var(--pink));
+    width:0;transition:width .6s ease;
+  }
+  .bar.full > i{background:linear-gradient(90deg,#3ad17a,var(--good));}
+  .pct{text-align:right;font-size:13px;color:var(--muted);margin-top:6px;}
+  .meta{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-top:4px;}
+  table{width:100%;border-collapse:collapse;font-size:14px;margin-top:8px;}
+  th,td{padding:9px 6px;text-align:center;border-bottom:1px solid #f1e6e8;}
+  th{color:var(--muted);font-weight:600;font-size:12px;}
+  td.min{font-weight:700;color:var(--pink);}
+  .foot{color:var(--muted);font-size:12px;text-align:center;margin-top:18px;line-height:1.6;}
+  .badge{display:inline-block;background:var(--pink-soft);color:var(--pink);
+    font-size:12px;padding:3px 9px;border-radius:99px;margin-left:6px;vertical-align:middle;}
+  .err{background:#fff;border:1px dashed var(--pink);color:var(--pink);
+    padding:14px;border-radius:12px;font-size:13px;text-align:center;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>📊 直播時數達標追蹤 <span class="badge" id="src">範例資料</span></h1>
+  <div class="sub">目標 <b>45 小時 / 月</b>　·　資料來源：Google Sheet</div>
+
+  <div class="row">
+    <select id="month"></select>
+  </div>
+
+  <div class="card">
+    <div class="big">本月已播</div>
+    <div class="hours"><span id="hrs">0</span><small>小時</small></div>
+
+    <div class="goalline" id="goal"></div>
+
+    <div class="bar" id="bar"><i id="fill"></i></div>
+    <div class="pct" id="pct">0%</div>
+    <div class="meta"><span id="cntInfo"></span><span>目標 45 小時</span></div>
+  </div>
+
+  <div class="card">
+    <div class="big" style="margin-bottom:10px;">本月場次明細</div>
+    <div id="tableWrap"></div>
+  </div>
+
+  <div class="foot" id="foot"></div>
+</div>
+
+<script>
+/* ===================== 設定區 ===================== */
+const GOAL_HOURS = 45;          // 達標門檻（小時/月）
+
+// 資料來源：兩種模式
+//  A) DEMO 模式：用下面內建範例資料（你截圖那些）
+//  B) SHEET 模式：填入你的試算表 ID，會自動讀各月分頁
+//     把 SHEET_ID 換成你的（網址裡 /d/ 後面那串），DEMO 會自動關掉
+const SHEET_ID = "11BeDer8jmPFgKuJvqx8a29J_sR_bnPIMCcKpx7_vkZ0";  // 你的試算表
+
+// 內建範例（對應你截圖的 2026.05 分頁）
+const DEMO = {
+  "2026.05": [
+    ["5/1","18:02","19:11",69],["5/2","16:46","17:59",73],
+    ["5/3","20:40","22:12",92],["5/4","18:16","19:52",96],
+    ["5/6","19:31","20:21",50],["5/11","17:44","19:00",76],
+    ["5/15","4:40","6:03",83],["5/16","14:18","14:35",17],
+    ["5/17","14:30","17:33",183],["5/19","18:12","20:11",119],
+    ["5/20","17:00","19:54",174],["5/21","14:02","15:08",66],
+    ["5/21","15:40","17:17",97],["5/22","14:16","17:04",168],
+    ["5/22","19:11","21:32",141]
+  ],
+  "2026.06": [
+    ["6/1","20:00","21:30",90],["6/3","19:00","20:45",105],
+    ["6/8","18:30","20:00",90]
+  ]
+};
+/* ================================================= */
+
+const $ = id => document.getElementById(id);
+const USE_SHEET = SHEET_ID.trim().length > 0;
+
+// 解析「Total minutes」欄，加總成小時
+function sumHours(rows){
+  let m = 0;
+  rows.forEach(r => { const v = Number(r[3]); if(!isNaN(v)) m += v; });
+  return m/60;
+}
+
+function render(monthKey, rows){
+  const hours = sumHours(rows);
+  const hrsR = Math.round(hours*10)/10;
+  $("hrs").textContent = hrsR;
+
+  const remain = Math.round((GOAL_HOURS - hours)*10)/10;
+  if(remain > 0){
+    $("goal").innerHTML = `離達標還差 <b class="remain">${remain}</b> 小時`;
+  }else{
+    $("goal").innerHTML = `🎉 已達標！超出 <b class="done">${Math.abs(remain)}</b> 小時`;
+  }
+
+  const pct = Math.min(100, Math.round(hours/GOAL_HOURS*100));
+  $("fill").style.width = pct + "%";
+  $("pct").textContent = pct + "%";
+  $("bar").classList.toggle("full", hours >= GOAL_HOURS);
+  $("cntInfo").textContent = `共 ${rows.length} 場`;
+
+  // 明細表
+  let html = '<table><thead><tr><th>日期</th><th>開播</th><th>結束</th><th>分鐘</th></tr></thead><tbody>';
+  rows.forEach(r=>{
+    html += `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td class="min">${r[3]}</td></tr>`;
+  });
+  html += '</tbody></table>';
+  $("tableWrap").innerHTML = rows.length ? html : '<div class="err">這個月還沒有資料</div>';
+}
+
+// 從 Google Sheet 讀某個分頁（gviz，用分頁名稱）
+async function fetchSheet(sheetName){
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?`
+            + `tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
+  const res = await fetch(url);
+  const text = await res.text();
+  // 簡易 CSV 解析
+  const lines = text.trim().split("\n").map(l=>{
+    return l.match(/("([^"]|"")*"|[^,]*)(,|$)/g)
+            .slice(0,-1)
+            .map(c=>c.replace(/,$/,"").replace(/^"|"$/g,"").replace(/""/g,'"').trim());
+  });
+  // 去掉標題列，只保留「有日期 + 分鐘是有效數字」的場次列
+  // （過濾掉尾巴的合計列、空列、以及右側公式欄殘留）
+  return lines.slice(1)
+    .map(r=>[r[0],r[1],r[2],Number(r[3])])
+    .filter(r=> r[0] && r[1] && !isNaN(r[3]) && r[3] > 0);
+}
+
+async function loadMonth(monthKey){
+  if(USE_SHEET){
+    try{
+      const rows = await fetchSheet(monthKey);
+      render(monthKey, rows);
+    }catch(e){
+      $("tableWrap").innerHTML = '<div class="err">讀取失敗，請確認分頁名稱與共用權限</div>';
+    }
+  }else{
+    render(monthKey, DEMO[monthKey] || []);
+  }
+}
+
+// 候選月份：從 2026.01 往後列到「今天的月份」，逐一試抓，有資料才放進下拉
+function candidateMonths(){
+  const keys=[];
+  // 涵蓋 2025.01 ~ 2027.12，足夠用很久；實際有沒有資料由 fetch 決定
+  for(let y=2025;y<=2027;y++)
+    for(let m=1;m<=12;m++)
+      keys.push(`${y}.${String(m).padStart(2,"0")}`);
+  return keys;
+}
+
+async function buildMonths(){
+  const sel = $("month");
+  if(!USE_SHEET){
+    const keys = Object.keys(DEMO);
+    keys.forEach(k=>addOpt(sel,k));
+    sel.value = keys[keys.length-1];
+    return sel.value;
+  }
+  // SHEET 模式：平行試抓所有候選月，留下有資料的
+  const cands = candidateMonths();
+  const results = await Promise.all(cands.map(async k=>{
+    try{ const rows = await fetchSheet(k); return rows.length ? k : null; }
+    catch(e){ return null; }
+  }));
+  const have = results.filter(Boolean);
+  have.forEach(k=>addOpt(sel,k));
+  sel.value = have.length ? have[have.length-1] : "";
+  return sel.value;
+}
+
+function addOpt(sel,k){
+  const o=document.createElement("option");
+  o.value=k;
+  const [y,m]=k.split(".");
+  o.textContent=`${y}年${Number(m)}月`;
+  sel.appendChild(o);
+}
+
+(async function init(){
+  $("src").textContent = USE_SHEET ? "你的 Google Sheet" : "範例資料";
+  $("foot").innerHTML = USE_SHEET
+    ? "資料即時取自你的 Google Sheet · 表更新網頁就跟著更新"
+    : "目前顯示的是範例資料";
+  $("tableWrap").innerHTML = '<div class="err" style="border-style:solid;">讀取中…</div>';
+  const first = await buildMonths();
+  $("month").addEventListener("change", e=>loadMonth(e.target.value));
+  if(first) loadMonth(first);
+  else $("tableWrap").innerHTML = '<div class="err">找不到月份分頁，請確認分頁名稱是 YYYY.MM 格式</div>';
+})();
+</script>
+</body>
+</html>
