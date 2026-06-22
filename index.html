@@ -250,7 +250,7 @@ window.addEventListener("error", e=>{
 
 (async function init(){
   try{
-    $("src").textContent = USE_SHEET ? "Google Sheet" : "範例資料";
+    if($("src")) $("src").textContent = USE_SHEET ? "Google Sheet" : "範例資料";
     $("foot").innerHTML = USE_SHEET
       ? "資料即時取自 Google Sheet，更新表格網頁就會跟著更新<br>"
         + "데이터는 Google Sheet에서 실시간으로 가져옵니다"
