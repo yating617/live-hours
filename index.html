@@ -6,8 +6,9 @@
 <title>直播時數達標追蹤</title>
 <style>
   :root{
-    --bg:#fff5f6; --card:#ffffff; --pink:#ff2e4d; --pink-soft:#ffd9df;
-    --ink:#2b2b2b; --muted:#8a8a8a; --good:#1db954;
+    /* 薄荷綠主題（配合 Kang Chunil 立繪）。變數名沿用 pink 但值已改成薄荷綠 */
+    --bg:#eafaf1; --card:#ffffff; --pink:#3fbf8f; --pink-soft:#c5efdb;
+    --ink:#33473f; --muted:#8aa79b; --good:#2fae6b;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   body{
@@ -17,6 +18,10 @@
     padding:24px 16px 60px;
   }
   .wrap{width:100%;max-width:480px;}
+  .hero{
+    width:100%;display:block;border-radius:20px;margin-bottom:16px;
+    box-shadow:0 8px 28px rgba(63,191,143,.22);
+  }
   h1{font-size:20px;margin:4px 0 2px;display:flex;align-items:center;gap:8px;}
   .sub{color:var(--muted);font-size:13px;margin-bottom:18px;}
   .row{display:flex;align-items:center;gap:10px;margin-bottom:18px;}
@@ -26,7 +31,7 @@
   }
   .card{
     background:var(--card);border-radius:20px;padding:24px 22px;
-    box-shadow:0 6px 24px rgba(255,46,77,.10);margin-bottom:16px;
+    box-shadow:0 6px 24px rgba(63,191,143,.14);margin-bottom:16px;
   }
   .big{font-size:15px;color:var(--muted);margin-bottom:6px;}
   .hours{font-size:46px;font-weight:800;line-height:1;color:var(--pink);}
@@ -38,7 +43,7 @@
   .bar{height:16px;background:var(--pink-soft);border-radius:99px;overflow:hidden;margin-top:16px;}
   .bar > i{
     display:block;height:100%;border-radius:99px;
-    background:linear-gradient(90deg,#ff6a82,var(--pink));
+    background:linear-gradient(90deg,#7fe0b4,var(--pink));
     width:0;transition:width .6s ease;
   }
   .bar.full > i{background:linear-gradient(90deg,#3ad17a,var(--good));}
@@ -57,26 +62,27 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>📊 直播時數達標追蹤<br><span style="font-size:14px;font-weight:600;color:var(--muted);">라이브 시간 목표 트래커</span></h1>
-  <div class="sub">目標 <b>45 小時 / 月</b>　|　목표 <b>45시간 / 월</b></div>
+  <img class="hero" src="chunil.jpg" alt="Kang Chunil">
+  <h1>📊 라이브 시간 목표 트래커<br><span style="font-size:14px;font-weight:600;color:var(--muted);">直播時數達標追蹤</span></h1>
+  <div class="sub">목표 <b>45시간 / 월</b>　|　目標 <b>45 小時 / 月</b></div>
 
   <div class="row">
     <select id="month"></select>
   </div>
 
   <div class="card">
-    <div class="big">本月已播 · 이번 달 라이브</div>
-    <div class="hours"><span id="hrs">0</span><small>小時 시간</small></div>
+    <div class="big">이번 달 라이브 · 本月已播</div>
+    <div class="hours"><span id="hrs">0</span><small>시간 小時</small></div>
 
     <div class="goalline" id="goal"></div>
 
     <div class="bar" id="bar"><i id="fill"></i></div>
     <div class="pct" id="pct">0%</div>
-    <div class="meta"><span id="cntInfo"></span><span>目標 45 小時 · 목표 45시간</span></div>
+    <div class="meta"><span id="cntInfo"></span><span>목표 45시간 · 目標 45 小時</span></div>
   </div>
 
   <div class="card">
-    <div class="big" style="margin-bottom:10px;">本月場次明細 · 이번 달 라이브 내역</div>
+    <div class="big" style="margin-bottom:10px;">이번 달 라이브 내역 · 本月場次明細</div>
     <div id="tableWrap"></div>
   </div>
 
@@ -129,27 +135,27 @@ function render(monthKey, rows){
 
   const remain = Math.round((GOAL_HOURS - hours)*10)/10;
   if(remain > 0){
-    $("goal").innerHTML = `離達標還差 <b class="remain">${remain}</b> 小時<br>`
-      + `<span style="font-size:13px;color:var(--muted);">목표까지 <b class="remain">${remain}</b>시간 남음</span>`;
+    $("goal").innerHTML = `목표까지 <b class="remain">${remain}</b>시간 남음<br>`
+      + `<span style="font-size:13px;color:var(--muted);">離達標還差 <b class="remain">${remain}</b> 小時</span>`;
   }else{
-    $("goal").innerHTML = `🎉 已達標！超出 <b class="done">${Math.abs(remain)}</b> 小時<br>`
-      + `<span style="font-size:13px;color:var(--muted);">🎉 목표 달성! <b class="done">${Math.abs(remain)}</b>시간 초과</span>`;
+    $("goal").innerHTML = `🎉 목표 달성! <b class="done">${Math.abs(remain)}</b>시간 초과<br>`
+      + `<span style="font-size:13px;color:var(--muted);">🎉 已達標！超出 <b class="done">${Math.abs(remain)}</b> 小時</span>`;
   }
 
   const pct = Math.min(100, Math.round(hours/GOAL_HOURS*100));
   $("fill").style.width = pct + "%";
   $("pct").textContent = pct + "%";
   $("bar").classList.toggle("full", hours >= GOAL_HOURS);
-  $("cntInfo").textContent = `共 ${rows.length} 場 · 총 ${rows.length}회`;
+  $("cntInfo").textContent = `총 ${rows.length}회 · 共 ${rows.length} 場`;
 
   // 明細表
-  let html = '<table><thead><tr><th>日期<br>날짜</th><th>開播<br>시작</th><th>結束<br>종료</th><th>分鐘<br>분</th></tr></thead><tbody>';
+  let html = '<table><thead><tr><th>날짜<br>日期</th><th>시작<br>開播</th><th>종료<br>結束</th><th>분<br>分鐘</th></tr></thead><tbody>';
   rows.forEach(r=>{
     html += `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td class="min">${r[3]}</td></tr>`;
   });
   html += '</tbody></table>';
   $("tableWrap").innerHTML = rows.length ? html
-    : '<div class="err">這個月還沒有資料<br>이번 달 데이터가 없습니다</div>';
+    : '<div class="err">이번 달 데이터가 없습니다<br>這個月還沒有資料</div>';
 }
 
 // 從 Google Sheet 讀某個分頁（gviz，用分頁名稱）
@@ -192,7 +198,7 @@ async function loadMonth(monthKey){
       const rows = await fetchSheet(monthKey);
       render(monthKey, rows);
     }catch(e){
-      $("tableWrap").innerHTML = '<div class="err">讀取失敗<br>불러오기 실패</div>';
+      $("tableWrap").innerHTML = '<div class="err">불러오기 실패<br>讀取失敗</div>';
     }
   }else{
     render(monthKey, DEMO[monthKey] || []);
@@ -252,14 +258,14 @@ window.addEventListener("error", e=>{
   try{
     if($("src")) $("src").textContent = USE_SHEET ? "Google Sheet" : "範例資料";
     $("foot").innerHTML = USE_SHEET
-      ? "資料即時取自 Google Sheet，更新表格網頁就會跟著更新<br>"
-        + "데이터는 Google Sheet에서 실시간으로 가져옵니다"
+      ? "데이터는 Google Sheet에서 실시간으로 가져옵니다<br>"
+        + "資料即時取自 Google Sheet，更新表格網頁就會跟著更新"
       : "目前顯示的是範例資料";
-    $("tableWrap").innerHTML = '<div class="err" style="border-style:solid;">讀取中… 불러오는 중…</div>';
+    $("tableWrap").innerHTML = '<div class="err" style="border-style:solid;">불러오는 중… 讀取中…</div>';
     const first = await buildMonths();
     $("month").addEventListener("change", e=>loadMonth(e.target.value));
     if(first) loadMonth(first);
-    else $("tableWrap").innerHTML = '<div class="err">找不到月份分頁<br>월 데이터를 찾을 수 없습니다</div>';
+    else $("tableWrap").innerHTML = '<div class="err">월 데이터를 찾을 수 없습니다<br>找不到月份分頁</div>';
   }catch(err){
     $("tableWrap").innerHTML = '<div class="err">⚠️ 載入失敗：'+ (err.message||err) +'</div>';
   }
