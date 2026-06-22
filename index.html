@@ -154,14 +154,17 @@ function render(monthKey, rows){
 
 // 從 Google Sheet 讀某個分頁（gviz，用分頁名稱）
 async function fetchSheet(sheetName){
+  // 加亂數參數防止瀏覽器/CDN 回舊快取
+  const bust = Math.floor(performance.now()) + "_" + sheetName.length;
   const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?`
-            + `tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
-  const res = await fetch(url);
+            + `tqx=out:csv&sheet=${encodeURIComponent(sheetName)}&_=${bust}`;
+  const res = await fetch(url, {cache:"no-store"});
   const text = await res.text();
-  // 簡易 CSV 解析
+  // 簡易 CSV 解析（對空行/解析失敗做防呆，避免整段中斷）
   const lines = text.trim().split("\n").map(l=>{
-    return l.match(/("([^"]|"")*"|[^,]*)(,|$)/g)
-            .slice(0,-1)
+    const m = l.match(/("([^"]|"")*"|[^,]*)(,|$)/g);
+    if(!m) return [];
+    return m.slice(0,-1)
             .map(c=>c.replace(/,$/,"").replace(/^"|"$/g,"").replace(/""/g,'"').trim());
   });
   // 去掉標題列，只保留「有日期 + 分鐘是有效數字」的場次列
@@ -239,17 +242,27 @@ function addOpt(sel,k){
   sel.appendChild(o);
 }
 
+// 把任何未捕捉的錯誤直接顯示在畫面上（方便除錯，不再只是空白）
+window.addEventListener("error", e=>{
+  const t=$("tableWrap"); if(t) t.innerHTML =
+    '<div class="err">⚠️ 錯誤：'+ (e.message||e) +'</div>';
+});
+
 (async function init(){
-  $("src").textContent = USE_SHEET ? "Google Sheet" : "範例資料";
-  $("foot").innerHTML = USE_SHEET
-    ? "資料即時取自 Google Sheet，更新表格網頁就會跟著更新<br>"
-      + "데이터는 Google Sheet에서 실시간으로 가져옵니다"
-    : "目前顯示的是範例資料";
-  $("tableWrap").innerHTML = '<div class="err" style="border-style:solid;">讀取中… 불러오는 중…</div>';
-  const first = await buildMonths();
-  $("month").addEventListener("change", e=>loadMonth(e.target.value));
-  if(first) loadMonth(first);
-  else $("tableWrap").innerHTML = '<div class="err">找不到月份分頁<br>월 데이터를 찾을 수 없습니다</div>';
+  try{
+    $("src").textContent = USE_SHEET ? "Google Sheet" : "範例資料";
+    $("foot").innerHTML = USE_SHEET
+      ? "資料即時取自 Google Sheet，更新表格網頁就會跟著更新<br>"
+        + "데이터는 Google Sheet에서 실시간으로 가져옵니다"
+      : "目前顯示的是範例資料";
+    $("tableWrap").innerHTML = '<div class="err" style="border-style:solid;">讀取中… 불러오는 중…</div>';
+    const first = await buildMonths();
+    $("month").addEventListener("change", e=>loadMonth(e.target.value));
+    if(first) loadMonth(first);
+    else $("tableWrap").innerHTML = '<div class="err">找不到月份分頁<br>월 데이터를 찾을 수 없습니다</div>';
+  }catch(err){
+    $("tableWrap").innerHTML = '<div class="err">⚠️ 載入失敗：'+ (err.message||err) +'</div>';
+  }
 })();
 </script>
 </body>
