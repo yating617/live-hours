@@ -53,6 +53,11 @@
   th,td{padding:9px 6px;text-align:center;border-bottom:1px solid #f1e6e8;}
   th{color:var(--muted);font-weight:600;font-size:12px;}
   td.min{font-weight:700;color:var(--pink);}
+  tr.invalid td{color:#e23b3b;}                 /* 未達 60 分鐘整列轉紅 */
+  tr.invalid{background:#fff0f0;}
+  td.invalid-min{color:#e23b3b;}
+  .x{display:inline-block;font-size:11px;background:#ffe0e0;color:#e23b3b;
+     padding:1px 6px;border-radius:99px;margin-left:4px;vertical-align:middle;}
   .foot{color:var(--muted);font-size:12px;text-align:center;margin-top:18px;line-height:1.6;}
   .badge{display:inline-block;background:var(--pink-soft);color:var(--pink);
     font-size:12px;padding:3px 9px;border-radius:99px;margin-left:6px;vertical-align:middle;}
@@ -92,6 +97,7 @@
 <script>
 /* ===================== 設定區 ===================== */
 const GOAL_HOURS = 45;          // 達標門檻（小時/月）
+const MIN_VALID = 60;           // 單場最低有效分鐘數，低於此不計入總時數（但明細仍顯示並標紅）
 
 // 資料來源：兩種模式
 //  A) DEMO 模式：用下面內建範例資料（你截圖那些）
@@ -121,10 +127,10 @@ const DEMO = {
 const $ = id => document.getElementById(id);
 const USE_SHEET = SHEET_ID.trim().length > 0;
 
-// 解析「Total minutes」欄，加總成小時
+// 解析「Total minutes」欄，加總成小時（只計入 >= MIN_VALID 分鐘的場次）
 function sumHours(rows){
   let m = 0;
-  rows.forEach(r => { const v = Number(r[3]); if(!isNaN(v)) m += v; });
+  rows.forEach(r => { const v = Number(r[3]); if(!isNaN(v) && v >= MIN_VALID) m += v; });
   return m/60;
 }
 
@@ -146,12 +152,18 @@ function render(monthKey, rows){
   $("fill").style.width = pct + "%";
   $("pct").textContent = pct + "%";
   $("bar").classList.toggle("full", hours >= GOAL_HOURS);
-  $("cntInfo").textContent = `총 ${rows.length}회 · 共 ${rows.length} 場`;
+  const validCnt = rows.filter(r => Number(r[3]) >= MIN_VALID).length;
+  $("cntInfo").textContent = `유효 ${validCnt}회 · 有效 ${validCnt} 場 (총 ${rows.length})`;
 
-  // 明細表
+  // 明細表（低於 MIN_VALID 分鐘的場次整列標紅，不計入總時數）
   let html = '<table><thead><tr><th>날짜<br>日期</th><th>시작<br>開播</th><th>종료<br>結束</th><th>분<br>分鐘</th></tr></thead><tbody>';
   rows.forEach(r=>{
-    html += `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td class="min">${r[3]}</td></tr>`;
+    const invalid = Number(r[3]) < MIN_VALID;
+    const cls = invalid ? ' class="invalid"' : '';
+    const minCell = invalid
+      ? `<td class="min invalid-min">${r[3]} <span class="x">미달 未達</span></td>`
+      : `<td class="min">${r[3]}</td>`;
+    html += `<tr${cls}><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td>${minCell}</tr>`;
   });
   html += '</tbody></table>';
   $("tableWrap").innerHTML = rows.length ? html
